@@ -2,6 +2,19 @@ import { createClient } from "@/lib/supabase/server";
 import type { Member } from "@/types/member";
 import type { HistoryPoint } from "@/lib/mock-data";
 
+// Challenge year helpers
+function getChallengeYear(): number {
+  return new Date().getFullYear();
+}
+
+function getChallengeStartDate(): string {
+  return `${getChallengeYear()}-01-01T00:00:00.000Z`;
+}
+
+function getChallengeEndDate(): string {
+  return `${getChallengeYear()}-12-31T23:59:59.999Z`;
+}
+
 export interface MemberWithBenefit {
   id: string;
   userId: string;
@@ -14,36 +27,30 @@ export interface MemberWithBenefit {
 
 export async function getMembers(): Promise<MemberWithBenefit[]> {
   const supabase = await createClient();
+  const challengeStart = getChallengeStartDate();
+  const challengeEnd = getChallengeEndDate();
 
-  // Get all members with their latest benefit amount
+  // Get all members
   const { data: members } = await supabase
     .from("members")
-    .select(
-      `
-      id,
-      user_id,
-      name,
-      avatar_url,
-      color,
-      created_at,
-      benefit_history (
-        amount,
-        recorded_at
-      )
-    `
-    )
+    .select("id, user_id, name, avatar_url, color, created_at")
     .order("created_at", { ascending: true });
 
   if (!members) return [];
 
+  // Get benefit history for current challenge year only
+  const { data: history } = await supabase
+    .from("benefit_history")
+    .select("member_id, amount, recorded_at")
+    .gte("recorded_at", challengeStart)
+    .lte("recorded_at", challengeEnd)
+    .order("recorded_at", { ascending: false });
+
   return members.map((member) => {
-    const history = member.benefit_history as Array<{
-      amount: number;
-      recorded_at: string;
-    }>;
-    const latestBenefit = history?.length
-      ? Math.max(...history.map((h) => Number(h.amount)))
-      : 0;
+    // Sum all profits for this member in current year
+    const memberHistory = history?.filter((h) => h.member_id === member.id);
+    const totalBenefit =
+      memberHistory?.reduce((sum, h) => sum + Number(h.amount), 0) ?? 0;
 
     return {
       id: member.id,
@@ -53,7 +60,7 @@ export async function getMembers(): Promise<MemberWithBenefit[]> {
         member.avatar_url ||
         `https://api.dicebear.com/9.x/avataaars/svg?seed=${member.name}`,
       color: member.color,
-      currentBenefit: latestBenefit,
+      currentBenefit: totalBenefit,
       createdAt: member.created_at,
     };
   });
@@ -72,6 +79,9 @@ export async function getMembersForChart(): Promise<Member[]> {
 
 export async function getHistoryForChart(): Promise<HistoryPoint[]> {
   const supabase = await createClient();
+  const challengeYear = getChallengeYear();
+  const challengeStart = getChallengeStartDate();
+  const challengeEnd = getChallengeEndDate();
 
   // Get all members
   const { data: members } = await supabase
@@ -81,62 +91,74 @@ export async function getHistoryForChart(): Promise<HistoryPoint[]> {
 
   if (!members || members.length === 0) return [];
 
-  // Get all benefit history
+  // Get benefit history for current challenge year only
   const { data: history } = await supabase
     .from("benefit_history")
     .select("member_id, amount, recorded_at")
+    .gte("recorded_at", challengeStart)
+    .lte("recorded_at", challengeEnd)
     .order("recorded_at", { ascending: true });
 
-  if (!history || history.length === 0) return [];
+  // Generate all 12 months of the challenge year
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  const yearSuffix = String(challengeYear).slice(-2);
 
-  // Group history by month
-  const monthlyData = new Map<string, Record<string, number>>();
-
-  for (const entry of history) {
-    const date = new Date(entry.recorded_at);
-    const monthKey = date.toLocaleDateString("en-US", {
-      month: "short",
-      year: "2-digit",
-    });
-
-    if (!monthlyData.has(monthKey)) {
-      monthlyData.set(monthKey, {});
-    }
-
-    const member = members.find((m) => m.id === entry.member_id);
-    if (member) {
-      const current = monthlyData.get(monthKey)!;
-      // Keep the highest value for each member in each month
-      current[member.name] = Math.max(
-        current[member.name] || 0,
-        Number(entry.amount)
-      );
+  // Initialize monthly profit sums (individual profits per month)
+  const monthlyProfits = new Map<string, Record<string, number>>();
+  for (const monthName of monthNames) {
+    const monthKey = `${monthName} '${yearSuffix}`;
+    monthlyProfits.set(monthKey, {});
+    for (const member of members) {
+      monthlyProfits.get(monthKey)![member.name] = 0;
     }
   }
 
-  // Convert to HistoryPoint array
+  // Sum up profits per member per month
+  if (history) {
+    for (const entry of history) {
+      const date = new Date(entry.recorded_at);
+      const monthIndex = date.getMonth();
+      const monthKey = `${monthNames[monthIndex]} '${yearSuffix}`;
+
+      const member = members.find((m) => m.id === entry.member_id);
+      if (member) {
+        const current = monthlyProfits.get(monthKey)!;
+        // Add to the monthly sum
+        current[member.name] =
+          (current[member.name] || 0) + Number(entry.amount);
+      }
+    }
+  }
+
+  // Convert to HistoryPoint array with running cumulative totals
   const result: HistoryPoint[] = [];
-  const sortedMonths = Array.from(monthlyData.keys()).sort((a, b) => {
-    const dateA = new Date(a);
-    const dateB = new Date(b);
-    return dateA.getTime() - dateB.getTime();
-  });
-
-  // Carry forward values for members who joined later
-  const lastKnownValues: Record<string, number> = {};
-  for (const name of members.map((m) => m.name)) {
-    lastKnownValues[name] = 0;
+  const cumulativeTotals: Record<string, number> = {};
+  for (const member of members) {
+    cumulativeTotals[member.name] = 0;
   }
 
-  for (const month of sortedMonths) {
-    const data = monthlyData.get(month)!;
-    const point: HistoryPoint = { date: month };
+  for (const monthName of monthNames) {
+    const monthKey = `${monthName} '${yearSuffix}`;
+    const monthProfits = monthlyProfits.get(monthKey)!;
+    const point: HistoryPoint = { date: monthKey };
 
     for (const member of members) {
-      if (data[member.name] !== undefined) {
-        lastKnownValues[member.name] = data[member.name];
-      }
-      point[member.name] = lastKnownValues[member.name];
+      // Add this month's profit to running total
+      cumulativeTotals[member.name] += monthProfits[member.name] || 0;
+      point[member.name] = cumulativeTotals[member.name];
     }
 
     result.push(point);
@@ -147,6 +169,8 @@ export async function getHistoryForChart(): Promise<HistoryPoint[]> {
 
 export async function getCurrentUserMember(): Promise<MemberWithBenefit | null> {
   const supabase = await createClient();
+  const challengeStart = getChallengeStartDate();
+  const challengeEnd = getChallengeEndDate();
 
   const {
     data: { user },
@@ -154,34 +178,25 @@ export async function getCurrentUserMember(): Promise<MemberWithBenefit | null> 
 
   if (!user) return null;
 
+  // Get member info
   const { data: member } = await supabase
     .from("members")
-    .select(
-      `
-      id,
-      user_id,
-      name,
-      avatar_url,
-      color,
-      created_at,
-      benefit_history (
-        amount,
-        recorded_at
-      )
-    `
-    )
+    .select("id, user_id, name, avatar_url, color, created_at")
     .eq("user_id", user.id)
     .single();
 
   if (!member) return null;
 
-  const history = member.benefit_history as Array<{
-    amount: number;
-    recorded_at: string;
-  }>;
-  const latestBenefit = history?.length
-    ? Math.max(...history.map((h) => Number(h.amount)))
-    : 0;
+  // Get all benefit history for current challenge year and sum them
+  const { data: history } = await supabase
+    .from("benefit_history")
+    .select("amount")
+    .eq("member_id", member.id)
+    .gte("recorded_at", challengeStart)
+    .lte("recorded_at", challengeEnd);
+
+  const totalBenefit =
+    history?.reduce((sum, h) => sum + Number(h.amount), 0) ?? 0;
 
   return {
     id: member.id,
@@ -191,7 +206,7 @@ export async function getCurrentUserMember(): Promise<MemberWithBenefit | null> 
       member.avatar_url ||
       `https://api.dicebear.com/9.x/avataaars/svg?seed=${member.name}`,
     color: member.color,
-    currentBenefit: latestBenefit,
+    currentBenefit: totalBenefit,
     createdAt: member.created_at,
   };
 }

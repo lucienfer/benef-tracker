@@ -3,6 +3,21 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
+// Challenge runs from Jan 1 to Dec 31 of the current year
+function getChallengeYear(): number {
+  return new Date().getFullYear();
+}
+
+function getChallengeStartDate(): Date {
+  const year = getChallengeYear();
+  return new Date(`${year}-01-01T00:00:00`);
+}
+
+function getChallengeEndDate(): Date {
+  const year = getChallengeYear();
+  return new Date(`${year}-12-31T23:59:59`);
+}
+
 export async function addBenefit(
   amount: number,
   date: string
@@ -17,6 +32,22 @@ export async function addBenefit(
     return { error: "Not authenticated" };
   }
 
+  // Validate date is within current challenge year
+  const recordedAt = new Date(`${date}T12:00:00`);
+  const challengeStart = getChallengeStartDate();
+  const challengeEnd = getChallengeEndDate();
+
+  if (recordedAt < challengeStart || recordedAt > challengeEnd) {
+    return {
+      error: `Date must be within the ${getChallengeYear()} challenge year`,
+    };
+  }
+
+  // Cannot add profit for future dates
+  if (recordedAt > new Date()) {
+    return { error: "Cannot add profit for future dates" };
+  }
+
   // Get the member
   const { data: member } = await supabase
     .from("members")
@@ -28,25 +59,10 @@ export async function addBenefit(
     return { error: "Member not found" };
   }
 
-  // Get current benefit
-  const { data: latestHistory } = await supabase
-    .from("benefit_history")
-    .select("amount")
-    .eq("member_id", member.id)
-    .order("recorded_at", { ascending: false })
-    .limit(1)
-    .single();
-
-  const currentAmount = latestHistory ? Number(latestHistory.amount) : 0;
-  const newAmount = currentAmount + amount;
-
-  // Parse the date and set to noon to avoid timezone issues
-  const recordedAt = new Date(`${date}T12:00:00`);
-
-  // Insert new history entry with the specified date
+  // Insert individual profit entry (cumulative is calculated on read)
   const { error } = await supabase.from("benefit_history").insert({
     member_id: member.id,
-    amount: newAmount,
+    amount: amount,
     recorded_at: recordedAt.toISOString(),
   });
 

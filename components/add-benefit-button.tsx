@@ -15,13 +15,15 @@ import { Input } from "@/components/ui/input";
 import { addBenefit } from "@/app/actions/benefit";
 import { Plus } from "lucide-react";
 
+// Challenge year constraints
+const currentYear = new Date().getFullYear();
+const challengeStartDate = `${currentYear}-01-01`;
+const todayDate = new Date().toISOString().split("T")[0];
+
 export function AddBenefitButton() {
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split("T")[0];
-  });
+  const [date, setDate] = useState(todayDate);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -38,7 +40,7 @@ export function AddBenefitButton() {
         setError(result.error);
       } else {
         setAmount("");
-        setDate(new Date().toISOString().split("T")[0]);
+        setDate(todayDate);
         setOpen(false);
       }
     });
@@ -95,7 +97,8 @@ export function AddBenefitButton() {
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                max={new Date().toISOString().split("T")[0]}
+                min={challengeStartDate}
+                max={todayDate}
               />
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
