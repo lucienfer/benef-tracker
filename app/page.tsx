@@ -1,20 +1,12 @@
 import { Header } from "@/components/header";
 import { ProgressChart } from "@/components/progress-chart";
 import { getMembersForChart, getHistoryForChart } from "@/lib/data";
-import { mockMembers, mockHistory } from "@/lib/mock-data";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  // Try to fetch from database, fall back to mock data
-  let members = await getMembersForChart();
-  let history = await getHistoryForChart();
-
-  // Use mock data if database is empty or not configured
-  if (members.length === 0) {
-    members = mockMembers;
-    history = mockHistory;
-  }
+  const members = await getMembersForChart();
+  const history = await getHistoryForChart();
 
   return (
     <div className="min-h-screen bg-background">

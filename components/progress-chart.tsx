@@ -30,6 +30,12 @@ function formatCurrency(value: number): string {
   return `$${value}`;
 }
 
+// Consistent number formatting to avoid hydration mismatch
+// Uses en-US locale explicitly to ensure server/client consistency
+function formatNumber(value: number): string {
+  return value.toLocaleString("en-US");
+}
+
 export function ProgressChart({ members, history }: ProgressChartProps) {
   const sortedMembers = [...members].sort(
     (a, b) => b.currentBenefit - a.currentBenefit
@@ -60,7 +66,7 @@ export function ProgressChart({ members, history }: ProgressChartProps) {
             </Avatar>
             <span className="text-sm font-medium">{member.name}</span>
             <span className="text-sm font-bold" style={{ color: member.color }}>
-              ${member.currentBenefit.toLocaleString()}
+              ${formatNumber(member.currentBenefit)}
             </span>
           </div>
         ))}
@@ -104,7 +110,7 @@ export function ProgressChart({ members, history }: ProgressChartProps) {
                   <div className="flex items-center gap-2">
                     <span>{name}</span>
                     <span className="font-bold">
-                      ${Number(value).toLocaleString()}
+                      ${formatNumber(Number(value))}
                     </span>
                   </div>
                 )}
@@ -129,7 +135,7 @@ export function ProgressChart({ members, history }: ProgressChartProps) {
         <p className="text-sm text-muted-foreground">
           Goal:{" "}
           <span className="font-bold text-foreground">
-            ${GOAL_AMOUNT.toLocaleString()}
+            ${formatNumber(GOAL_AMOUNT)}
           </span>
           {" · "}
           <span className="text-destructive">Dashed line = finish line</span>

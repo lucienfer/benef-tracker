@@ -3,7 +3,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-export async function addBenefit(amount: number): Promise<{ error?: string }> {
+export async function addBenefit(
+  amount: number,
+  date: string
+): Promise<{ error?: string }> {
   const supabase = await createClient();
 
   const {
@@ -37,10 +40,14 @@ export async function addBenefit(amount: number): Promise<{ error?: string }> {
   const currentAmount = latestHistory ? Number(latestHistory.amount) : 0;
   const newAmount = currentAmount + amount;
 
-  // Insert new history entry
+  // Parse the date and set to noon to avoid timezone issues
+  const recordedAt = new Date(`${date}T12:00:00`);
+
+  // Insert new history entry with the specified date
   const { error } = await supabase.from("benefit_history").insert({
     member_id: member.id,
     amount: newAmount,
+    recorded_at: recordedAt.toISOString(),
   });
 
   if (error) {
