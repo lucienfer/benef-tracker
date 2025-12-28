@@ -11,6 +11,14 @@ const eslintConfig = defineConfig([
   github.getFlatConfigs().browser,
   github.getFlatConfigs().recommended,
   ...github.getFlatConfigs().typescript,
+  // Allow namespace imports and shadowing in shadcn/ui components
+  {
+    files: ["components/ui/**/*.tsx"],
+    rules: {
+      "import/no-namespace": "off",
+      "@typescript-eslint/no-shadow": "off",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

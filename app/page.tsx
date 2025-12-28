@@ -1,21 +1,31 @@
-/**
- * Home page component displaying the project title and description.
- * Serves as the landing page for the frontend setup template with centered layout.
- */
+import { Button } from "@/components/ui/button";
+import { ProgressChart } from "@/components/progress-chart";
+import { mockMembers, mockHistory } from "@/lib/mock-data";
+
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <main className="w-full max-w-2xl px-8 py-16">
-        <div className="flex flex-col items-center gap-8 text-center">
-          <h1 className="text-6xl font-semibold tracking-tight text-foreground">
-            frontend-setup-template
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            RoadTo100k
           </h1>
-          <div className="h-px w-24 bg-gray-300" />
-          <p className="max-w-lg text-lg leading-relaxed text-foreground/70">
-            A production-ready Next.js template optimized for frontend
-            development. Pre-configured with TypeScript, Tailwind CSS v4,
-            ESLint, and Prettier using Bun as the package manager.
+          <Button variant="outline">Connect Wallet</Button>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-5xl px-6 py-12">
+        <div className="mb-10 text-center">
+          <h2 className="mb-2 text-3xl font-bold tracking-tight text-foreground">
+            Challenge Progress
+          </h2>
+          <p className="text-muted-foreground">
+            Track who reaches $100k in DeFi profits first
           </p>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
+          <ProgressChart members={mockMembers} history={mockHistory} />
         </div>
       </main>
     </div>
