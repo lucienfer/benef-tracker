@@ -69,9 +69,8 @@ const generalSans = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "frontend-setup-template",
-  description:
-    "A production-ready Next.js template with TypeScript, Tailwind CSS v4, ESLint, and Prettier",
+  title: "Road to 100k",
+  description: "A tool to help you track your progress towards $100,000 in benefits.",
 };
 
 export default function RootLayout({
