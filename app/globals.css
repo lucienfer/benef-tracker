@@ -126,3 +126,15 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Chart avatar hover/tap effect */
+.avatar-end-point {
+  transition: transform 0.2s ease-out;
+  transform-origin: 12px 12px; /* Center of 24px avatar */
+  transform-box: fill-box;
+}
+
+/* When the group is hovered, scale all avatars in the group */
+.avatar-group-hovered .avatar-end-point {
+  transform: scale(1.3);
+}

@@ -70,7 +70,8 @@ const generalSans = localFont({
 
 export const metadata: Metadata = {
   title: "Road to 100k",
-  description: "A tool to help you track your progress towards $100,000 in benefits.",
+  description:
+    "A tool to help you track your progress towards $100,000 in benefits.",
 };
 
 export default function RootLayout({

@@ -79,7 +79,6 @@ export async function getMembersForChart(): Promise<Member[]> {
 
 export async function getHistoryForChart(): Promise<HistoryPoint[]> {
   const supabase = await createClient();
-  const challengeYear = getChallengeYear();
   const challengeStart = getChallengeStartDate();
   const challengeEnd = getChallengeEndDate();
 
@@ -114,15 +113,13 @@ export async function getHistoryForChart(): Promise<HistoryPoint[]> {
     "Nov",
     "Dec",
   ];
-  const yearSuffix = String(challengeYear).slice(-2);
 
   // Initialize monthly profit sums (individual profits per month)
   const monthlyProfits = new Map<string, Record<string, number>>();
   for (const monthName of monthNames) {
-    const monthKey = `${monthName} '${yearSuffix}`;
-    monthlyProfits.set(monthKey, {});
+    monthlyProfits.set(monthName, {});
     for (const member of members) {
-      monthlyProfits.get(monthKey)![member.name] = 0;
+      monthlyProfits.get(monthName)![member.name] = 0;
     }
   }
 
@@ -131,11 +128,11 @@ export async function getHistoryForChart(): Promise<HistoryPoint[]> {
     for (const entry of history) {
       const date = new Date(entry.recorded_at);
       const monthIndex = date.getMonth();
-      const monthKey = `${monthNames[monthIndex]} '${yearSuffix}`;
+      const monthName = monthNames[monthIndex];
 
       const member = members.find((m) => m.id === entry.member_id);
       if (member) {
-        const current = monthlyProfits.get(monthKey)!;
+        const current = monthlyProfits.get(monthName)!;
         // Add to the monthly sum
         current[member.name] =
           (current[member.name] || 0) + Number(entry.amount);
@@ -151,9 +148,8 @@ export async function getHistoryForChart(): Promise<HistoryPoint[]> {
   }
 
   for (const monthName of monthNames) {
-    const monthKey = `${monthName} '${yearSuffix}`;
-    const monthProfits = monthlyProfits.get(monthKey)!;
-    const point: HistoryPoint = { date: monthKey };
+    const monthProfits = monthlyProfits.get(monthName)!;
+    const point: HistoryPoint = { date: monthName };
 
     for (const member of members) {
       // Add this month's profit to running total
