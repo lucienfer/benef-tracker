@@ -169,14 +169,21 @@ function EndAvatars({
 
   if (!xAxis?.scale || !yAxis?.scale) return null;
 
-  const lastPoint = history[history.length - 1];
-  const lastDate = lastPoint.date;
+  // Find the last point that has actual member data (current month)
+  // Future months only have the date property
+  const lastPointWithData = [...history]
+    .reverse()
+    .find((point) => Object.keys(point).length > 1);
+
+  if (!lastPointWithData) return null;
+
+  const lastDate = lastPointWithData.date;
   const chartHeight = height || 400;
 
   // Calculate positions for all members
   const positions: AvatarPosition[] = members
     .map((member) => {
-      const value = Number(lastPoint[member.name]) || 0;
+      const value = Number(lastPointWithData[member.name]) || 0;
       return {
         member,
         x: xAxis.scale(lastDate),
@@ -237,25 +244,86 @@ export function ProgressChart({ members, history }: ProgressChartProps) {
 
   return (
     <div className="w-full">
-      <div className="mb-6 flex flex-wrap items-center justify-center gap-4">
-        {sortedMembers.map((member, index) => (
-          <div key={member.id} className="flex items-center gap-2">
-            <span className="text-sm font-bold text-muted-foreground">
-              #{index + 1}
-            </span>
+      <div className="mb-6 flex items-end justify-center gap-4">
+        {/* Top 3 podium - displayed in order: 2nd, 1st, 3rd */}
+        {sortedMembers.length > 1 && sortedMembers[1] && (
+          <div className="flex flex-col items-center">
             <Avatar
-              className="size-8 border-2"
-              style={{ borderColor: member.color }}
+              className="size-12 border-3"
+              style={{ borderColor: sortedMembers[1].color }}
             >
-              <AvatarImage src={member.avatar} alt={member.name} />
-              <AvatarFallback>{member.name[0]}</AvatarFallback>
+              <AvatarImage
+                src={sortedMembers[1].avatar}
+                alt={sortedMembers[1].name}
+              />
+              <AvatarFallback>{sortedMembers[1].name[0]}</AvatarFallback>
             </Avatar>
-            <span className="text-sm font-medium">{member.name}</span>
-            <span className="text-sm font-bold" style={{ color: member.color }}>
-              ${formatNumber(member.currentBenefit)}
+            <span className="mt-1 text-sm font-medium">
+              {sortedMembers[1].name}
             </span>
+            <span
+              className="text-sm font-bold"
+              style={{ color: sortedMembers[1].color }}
+            >
+              ${formatNumber(sortedMembers[1].currentBenefit)}
+            </span>
+            <div className="mt-2 flex h-16 w-20 items-center justify-center rounded-t-lg bg-muted">
+              <span className="text-2xl">🥈</span>
+            </div>
           </div>
-        ))}
+        )}
+        {sortedMembers.length > 0 && sortedMembers[0] && (
+          <div className="flex flex-col items-center">
+            <Avatar
+              className="size-16 border-4"
+              style={{ borderColor: sortedMembers[0].color }}
+            >
+              <AvatarImage
+                src={sortedMembers[0].avatar}
+                alt={sortedMembers[0].name}
+              />
+              <AvatarFallback>{sortedMembers[0].name[0]}</AvatarFallback>
+            </Avatar>
+            <span className="mt-1 text-base font-semibold">
+              {sortedMembers[0].name}
+            </span>
+            <span
+              className="text-base font-bold"
+              style={{ color: sortedMembers[0].color }}
+            >
+              ${formatNumber(sortedMembers[0].currentBenefit)}
+            </span>
+            <div className="mt-2 flex h-24 w-24 items-center justify-center rounded-t-lg bg-yellow-500/20">
+              <span className="text-3xl">🥇</span>
+            </div>
+          </div>
+        )}
+        {sortedMembers.length > 2 && sortedMembers[2] && (
+          <div className="flex flex-col items-center">
+            <Avatar
+              className="size-10 border-2"
+              style={{ borderColor: sortedMembers[2].color }}
+            >
+              <AvatarImage
+                src={sortedMembers[2].avatar}
+                alt={sortedMembers[2].name}
+              />
+              <AvatarFallback>{sortedMembers[2].name[0]}</AvatarFallback>
+            </Avatar>
+            <span className="mt-1 text-xs font-medium">
+              {sortedMembers[2].name}
+            </span>
+            <span
+              className="text-xs font-bold"
+              style={{ color: sortedMembers[2].color }}
+            >
+              ${formatNumber(sortedMembers[2].currentBenefit)}
+            </span>
+            <div className="mt-2 flex h-12 w-16 items-center justify-center rounded-t-lg bg-muted">
+              <span className="text-xl">🥉</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <ChartContainer config={chartConfig} className="h-[400px] w-full">
@@ -338,16 +406,6 @@ export function ProgressChart({ members, history }: ProgressChartProps) {
         </LineChart>
       </ChartContainer>
 
-      <div className="mt-4 text-center">
-        <p className="text-sm text-muted-foreground">
-          Goal:{" "}
-          <span className="font-bold text-foreground">
-            ${formatNumber(GOAL_AMOUNT)}
-          </span>
-          {" · "}
-          <span className="text-destructive">Dashed line = finish line</span>
-        </p>
-      </div>
     </div>
   );
 }

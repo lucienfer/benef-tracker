@@ -7,6 +7,19 @@ function getChallengeYear(): number {
   return new Date().getFullYear();
 }
 
+// Get user IDs who have accepted the current year's challenge
+async function getAcceptedUserIds(): Promise<string[]> {
+  const supabase = await createClient();
+  const year = getChallengeYear();
+
+  const { data } = await supabase
+    .from("challenge_acceptances")
+    .select("user_id")
+    .eq("year", year);
+
+  return data?.map((d) => d.user_id) ?? [];
+}
+
 function getChallengeStartDate(): string {
   return `${getChallengeYear()}-01-01T00:00:00.000Z`;
 }
@@ -68,27 +81,37 @@ export async function getMembers(): Promise<MemberWithBenefit[]> {
 
 export async function getMembersForChart(): Promise<Member[]> {
   const members = await getMembers();
-  return members.map((m) => ({
-    id: m.id,
-    name: m.name,
-    avatar: m.avatar,
-    currentBenefit: m.currentBenefit,
-    color: m.color,
-  }));
+  const acceptedUserIds = await getAcceptedUserIds();
+
+  // Only include members who have accepted the challenge
+  return members
+    .filter((m) => acceptedUserIds.includes(m.userId))
+    .map((m) => ({
+      id: m.id,
+      name: m.name,
+      avatar: m.avatar,
+      currentBenefit: m.currentBenefit,
+      color: m.color,
+    }));
 }
 
 export async function getHistoryForChart(): Promise<HistoryPoint[]> {
   const supabase = await createClient();
   const challengeStart = getChallengeStartDate();
   const challengeEnd = getChallengeEndDate();
+  const acceptedUserIds = await getAcceptedUserIds();
 
-  // Get all members
-  const { data: members } = await supabase
+  // Get only members who have accepted the challenge
+  const { data: allMembers } = await supabase
     .from("members")
-    .select("id, name")
+    .select("id, name, user_id")
     .order("created_at", { ascending: true });
 
-  if (!members || members.length === 0) return [];
+  if (!allMembers || allMembers.length === 0) return [];
+
+  // Filter to only accepted members
+  const members = allMembers.filter((m) => acceptedUserIds.includes(m.user_id));
+  if (members.length === 0) return [];
 
   // Get benefit history for current challenge year only
   const { data: history } = await supabase
@@ -141,21 +164,29 @@ export async function getHistoryForChart(): Promise<HistoryPoint[]> {
   }
 
   // Convert to HistoryPoint array with running cumulative totals
+  // Lines should only show data up to the current month
+  const currentMonth = new Date().getMonth(); // 0-indexed (0 = January)
+
   const result: HistoryPoint[] = [];
   const cumulativeTotals: Record<string, number> = {};
   for (const member of members) {
     cumulativeTotals[member.name] = 0;
   }
 
-  for (const monthName of monthNames) {
-    const monthProfits = monthlyProfits.get(monthName)!;
+  for (let i = 0; i < monthNames.length; i++) {
+    const monthName = monthNames[i];
     const point: HistoryPoint = { date: monthName };
 
-    for (const member of members) {
-      // Add this month's profit to running total
-      cumulativeTotals[member.name] += monthProfits[member.name] || 0;
-      point[member.name] = cumulativeTotals[member.name];
+    if (i <= currentMonth) {
+      // Only add data for months up to current month
+      const monthProfits = monthlyProfits.get(monthName)!;
+      for (const member of members) {
+        // Add this month's profit to running total
+        cumulativeTotals[member.name] += monthProfits[member.name] || 0;
+        point[member.name] = cumulativeTotals[member.name];
+      }
     }
+    // Future months will have no member data, just the date
 
     result.push(point);
   }

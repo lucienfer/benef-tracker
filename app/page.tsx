@@ -1,12 +1,29 @@
 import { Header } from "@/components/header";
 import { ProgressChart } from "@/components/progress-chart";
-import { getMembersForChart, getHistoryForChart } from "@/lib/data";
+import { ChallengeStats } from "@/components/challenge-stats";
+import { ChallengeAcceptModal } from "@/components/challenge-accept-modal";
+import {
+  getMembersForChart,
+  getHistoryForChart,
+  getCurrentUserMember,
+} from "@/lib/data";
+import { hasAcceptedChallenge } from "@/app/actions/challenge";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   const members = await getMembersForChart();
   const history = await getHistoryForChart();
+  const currentUserMember = user ? await getCurrentUserMember() : null;
+
+  // Check if logged-in user needs to accept the challenge
+  const showChallengeModal = user ? !(await hasAcceptedChallenge()) : false;
 
   return (
     <div className="min-h-screen bg-background">
@@ -18,14 +35,23 @@ export default async function Home() {
             Challenge Progress
           </h2>
           <p className="text-muted-foreground">
-            Track who reaches $100k in DeFi profits first
+            Qui arrivera a gagner 100k avant le 31 decembre ?
           </p>
         </div>
 
         <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
           <ProgressChart members={members} history={history} />
         </div>
+
+        <ChallengeStats
+          isLoggedIn={!!user}
+          currentAmount={currentUserMember?.currentBenefit}
+        />
       </main>
+
+      {showChallengeModal && (
+        <ChallengeAcceptModal open={true} userName={currentUserMember?.name} />
+      )}
     </div>
   );
 }

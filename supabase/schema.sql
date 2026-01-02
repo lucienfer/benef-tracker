@@ -53,3 +53,25 @@ CREATE POLICY "Users can update their own history" ON benefit_history
       SELECT 1 FROM members WHERE members.id = benefit_history.member_id AND members.user_id = auth.uid()
     )
   );
+
+-- Challenge acceptances table: tracks yearly challenge participation
+CREATE TABLE IF NOT EXISTS challenge_acceptances (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  year INTEGER NOT NULL,
+  accepted_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  UNIQUE(user_id, year)
+);
+
+-- Index for faster queries
+CREATE INDEX IF NOT EXISTS idx_challenge_acceptances_user_year ON challenge_acceptances(user_id, year);
+
+-- Enable Row Level Security
+ALTER TABLE challenge_acceptances ENABLE ROW LEVEL SECURITY;
+
+-- Policies for challenge_acceptances table
+CREATE POLICY "Anyone can view challenge acceptances" ON challenge_acceptances
+  FOR SELECT USING (true);
+
+CREATE POLICY "Users can insert their own acceptance" ON challenge_acceptances
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
