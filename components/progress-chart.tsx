@@ -405,7 +405,6 @@ export function ProgressChart({ members, history }: ProgressChartProps) {
           />
         </LineChart>
       </ChartContainer>
-
     </div>
   );
 }

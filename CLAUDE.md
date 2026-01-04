@@ -1,318 +1,299 @@
-# Frontend Setup Template
+# Road to 100k - DeFi Challenge Tracker
 
 ## Overview
 
-A production-ready Next.js template repository optimized for frontend development and deployment. This template provides a modern development stack with TypeScript, Tailwind CSS v4.1, ESLint, and Prettier, using Bun as the package manager. The template includes AI agent configuration via `.claude` and `.cursor` directories for enhanced development workflows.
+A Next.js application for tracking progress in a yearly DeFi challenge where participants aim to reach $100,000 in cumulative profit. The app features OAuth authentication via Supabase, real-time progress visualization with interactive charts, a leaderboard podium, and a yearly challenge acceptance system.
 
 **Version**: 0.1.0
 **Framework**: Next.js 16.0.7
 **Runtime**: Bun
-**Last Updated**: 2025-12-04
+**Last Updated**: 2026-01-04
 
 ## Architecture
 
 ### Technology Stack
 
 - **Next.js 16.0.7** - App Router architecture with server and client components
-- **React 19.2.0** - Latest React with improved performance and new features
-- **TypeScript 5.9+** - Strict mode enabled for comprehensive type safety
+- **React 19.2.0** - Latest React with improved performance
+- **TypeScript 5.9+** - Strict mode enabled for type safety
 - **Tailwind CSS v4.1** - CSS-based configuration using `@theme` blocks
+- **Supabase** - PostgreSQL database with Row Level Security and OAuth authentication
+- **Recharts** - Interactive line charts for progress visualization
+- **Radix UI** - Accessible UI primitives (Dialog, Dropdown, Avatar)
 - **Bun** - Fast JavaScript runtime and package manager
-- **ESLint 9** - Flat config format with Next.js and GitHub plugin rules
-- **Prettier 3.7** - Code formatter with Tailwind CSS class sorting plugin
 
 ### Key Architectural Decisions
 
-1. **App Router**: Uses Next.js App Router for modern routing and layouts
-2. **TypeScript Strict Mode**: Enforces strict type checking across the codebase
-3. **CSS-First Styling**: Tailwind v4 with CSS-based theme configuration
-4. **Font Optimization**: Custom GeneralSans font family with multiple weights
-5. **AI-Assisted Development**: Pre-configured with Claude and Cursor rules
+1. **App Router**: Uses Next.js App Router for modern routing with server components
+2. **Server Actions**: All mutations (add profit, accept challenge) use server actions
+3. **Supabase SSR**: Authentication handled via `@supabase/ssr` for secure cookie-based sessions
+4. **Row Level Security**: Database policies ensure users can only modify their own data
+5. **Yearly Challenge Cycle**: Profits reset annually, tracked from Jan 1 to Dec 31
 
-### Design System
+### Core Features
 
-- **Typography**: GeneralSans font family (Extralight to Bold, with italics)
-- **Color Scheme**: Light mode by default with dark mode support via `prefers-color-scheme`
-  - Background: `#f8f8f8` (light) / `#0a0a0a` (dark)
-  - Foreground: `#1a1a1a` (light) / `#ededed` (dark)
-  - Accent: `#3a7bd5`
-  - Border: `#e2e2e2`
+1. **OAuth Authentication**: GitHub/Google login via Supabase Auth
+2. **Challenge Acceptance**: Users must explicitly accept the yearly challenge to participate
+3. **Profit Tracking**: Add individual profit entries with date selection (cumulative calculation on read)
+4. **Progress Visualization**: Line chart showing monthly cumulative progress for all participants
+5. **Leaderboard Podium**: Top 3 participants displayed with medals
+6. **Interactive Avatars**: Chart endpoints show participant avatars with hover tooltips
+
+## Database Schema
+
+### Tables
+
+```sql
+-- Members: Challenge participants linked to Supabase auth
+members (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id),
+  name TEXT NOT NULL,
+  avatar_url TEXT,
+  color TEXT NOT NULL,  -- OKLCH color for chart lines
+  created_at TIMESTAMPTZ
+)
+
+-- Benefit History: Individual profit entries (not cumulative)
+benefit_history (
+  id UUID PRIMARY KEY,
+  member_id UUID REFERENCES members(id),
+  amount DECIMAL(12, 2) NOT NULL,  -- Individual profit amount
+  recorded_at TIMESTAMPTZ,          -- Date of the profit
+  created_at TIMESTAMPTZ
+)
+
+-- Challenge Acceptances: Yearly participation tracking
+challenge_acceptances (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id),
+  year INTEGER NOT NULL,
+  accepted_at TIMESTAMPTZ,
+  UNIQUE(user_id, year)
+)
+```
+
+### Row Level Security
+
+- **Members**: Anyone can view; users can only insert/update their own
+- **Benefit History**: Anyone can view; users can only insert/update for their own member
+- **Challenge Acceptances**: Anyone can view; users can only insert their own
 
 ## Setup & Installation
 
 ### Prerequisites
 
-- [Bun](https://bun.sh) installed on your system (latest version recommended)
-
-### Installation Steps
-
-1. Clone this repository or use it as a template:
-
-```bash
-git clone <repository-url>
-cd frontend-setup-template
-```
-
-2. Install dependencies:
-
-```bash
-bun install
-```
-
-3. Run the development server:
-
-```bash
-bun dev
-```
-
-4. Open [http://localhost:3000](http://localhost:3000) in your browser
+- [Bun](https://bun.sh) installed on your system
+- Supabase project with authentication enabled
 
 ### Environment Variables
 
-Create a `.env.local` file in the root directory for environment-specific variables:
+Create a `.env.local` file:
 
 ```bash
-NEXT_PUBLIC_API_URL=https://api.example.com
-# Add other environment variables as needed
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-## Development Workflow
+### Installation Steps
+
+```bash
+# Clone and install
+git clone <repository-url>
+cd benefice-tracker
+bun install
+
+# Run database migrations
+# Execute supabase/schema.sql in your Supabase SQL editor
+
+# Start development server
+bun dev
+```
 
 ### Available Scripts
 
-- `bun dev` - Start Next.js development server with hot reload
+- `bun dev` - Start Next.js development server
 - `bun build` - Build optimized production bundle
-- `bun start` - Start production server (requires build first)
-- `bun lint` - Run ESLint to check for code issues
-- `bun lint:fix` - Run ESLint and automatically fix fixable issues
-- `bun format` - Format all code with Prettier
-- `bun format:check` - Check if code is formatted correctly (CI-friendly)
-
-### Git Workflow
-
-- **Main Branch**: `main` - Production-ready code
-- **CI/CD**: GitHub Actions workflow configured for lint and format checks on push/PR
-- See `.github/workflows/ci.yml` for CI configuration
-
-### Code Quality Tools
-
-1. **ESLint**: Configured with Next.js core web vitals and GitHub plugin rules
-2. **Prettier**: Automatic code formatting with Tailwind class sorting
-3. **TypeScript**: Strict mode catches potential issues at compile time
-4. **GitHub Actions**: Automated lint and format checks on all PRs
+- `bun start` - Start production server
+- `bun lint` - Run ESLint
+- `bun lint:fix` - Fix ESLint issues
+- `bun format` - Format code with Prettier
+- `bun format:check` - Check formatting
 
 ## File Structure
 
 ```
-frontend-setup-template/
-├── .claude/                    # Claude AI agent configuration
-│   ├── commands/              # Custom AI commands
-│   │   └── pr.md             # Pull request commands
-│   └── rules/                # AI coding rules
-│       └── typescript-code-quality.mdc
-├── .cursor/                   # Cursor AI editor configuration
-│   └── rules/                # Cursor-specific rules
-│       └── typescript-code-quality.mdc
-├── .github/                   # GitHub configuration
-│   └── workflows/            # CI/CD workflows
-│       └── ci.yml           # Lint and format checks
-├── app/                      # Next.js App Router directory
-│   ├── favicon.ico          # Site favicon
-│   ├── globals.css          # Global styles with Tailwind v4
-│   ├── layout.tsx           # Root layout with font configuration
-│   └── page.tsx             # Home page component
-├── components/               # Reusable React components (create as needed)
-├── public/                   # Static assets
-│   ├── fonts/               # GeneralSans font family (.otf files)
-│   └── *.svg                # SVG icons
-├── AGENTS.md                 # AI agent documentation and guidelines
-├── CLAUDE.md                 # This file - project documentation
-├── README.md                 # Project overview and quick start
-├── eslint.config.mjs         # ESLint v9 flat config
-├── prettier.config.ts        # Prettier configuration
-├── postcss.config.mjs        # PostCSS with Tailwind plugin
-├── next.config.ts            # Next.js configuration
-├── tsconfig.json             # TypeScript configuration
-└── package.json              # Dependencies and scripts
+benefice-tracker/
+├── app/
+│   ├── actions/
+│   │   ├── auth.ts            # Sign out action
+│   │   ├── benefit.ts         # Add profit server action
+│   │   └── challenge.ts       # Accept challenge, check acceptance
+│   ├── auth/
+│   │   └── auth-code-error/   # OAuth error handling
+│   ├── oauth/
+│   │   └── consent/route.ts   # OAuth callback handler
+│   ├── globals.css            # Tailwind v4 theme configuration
+│   ├── layout.tsx             # Root layout with GeneralSans font
+│   └── page.tsx               # Main dashboard page
+├── components/
+│   ├── ui/                    # Radix-based UI components
+│   │   ├── avatar.tsx
+│   │   ├── button.tsx
+│   │   ├── card.tsx
+│   │   ├── chart.tsx          # Recharts wrapper
+│   │   ├── dialog.tsx
+│   │   ├── dropdown-menu.tsx
+│   │   └── input.tsx
+│   ├── accept-challenge-button.tsx
+│   ├── add-benefit-button.tsx
+│   ├── challenge-accept-modal.tsx
+│   ├── challenge-stats.tsx
+│   ├── connect-button.tsx     # OAuth login/logout
+│   ├── header.tsx
+│   └── progress-chart.tsx     # Main chart with podium
+├── lib/
+│   ├── supabase/
+│   │   ├── client.ts          # Browser Supabase client
+│   │   ├── server.ts          # Server Supabase client
+│   │   └── middleware.ts      # Auth session refresh
+│   ├── data.ts                # Data fetching functions
+│   ├── database.types.ts      # Supabase type definitions
+│   ├── mock-data.ts           # HistoryPoint type definition
+│   └── utils.ts               # cn() utility
+├── types/
+│   └── member.ts              # Member interface, GOAL_AMOUNT constant
+├── supabase/
+│   └── schema.sql             # Database schema with RLS policies
+├── middleware.ts              # Supabase auth middleware
+└── .claude/                   # AI agent configuration
 ```
 
-### Key Files
+## Key Components
 
-- **AGENTS.md**: Comprehensive documentation for AI agents working on this codebase, includes coding guidelines, workflow instructions, and project context
-- **CLAUDE.md**: Project documentation for developers (this file)
-- **.claude/rules/**: TypeScript code quality rules enforced by AI agents
-- **app/layout.tsx**: Root layout with font loading and metadata configuration
-- **app/globals.css**: Tailwind v4 imports and theme customization
+### ProgressChart (`components/progress-chart.tsx`)
+
+- Renders cumulative profit line chart for all participants
+- Displays top 3 podium with medals
+- Shows interactive avatars at line endpoints with tooltips
+- Y-axis fixed at $100k goal with reference line
+
+### Data Layer (`lib/data.ts`)
+
+- `getMembersForChart()`: Returns members who accepted current year's challenge
+- `getHistoryForChart()`: Returns monthly cumulative profit history
+- `getCurrentUserMember()`: Returns current user's member data
+- All queries scoped to current challenge year (Jan 1 - Dec 31)
+
+### Server Actions
+
+- `addBenefit(amount, date)`: Add profit entry with date validation
+- `acceptChallenge()`: Accept current year's challenge, creates member if needed
+- `hasAcceptedChallenge()`: Check if user accepted current year
 
 ## Development Guidelines
 
-### Adding New Features
+### Adding Profits
 
-1. **Components**: Create reusable components in `components/` directory
-2. **Pages**: Add new pages in `app/` following App Router conventions
-3. **Styles**: Use Tailwind utility classes, extend theme in `app/globals.css` if needed
-4. **Types**: Leverage TypeScript strict mode for type safety
-5. **Imports**: Use `@/*` path alias for cleaner imports
+1. Individual profit entries are stored (not cumulative)
+2. Date must be within current challenge year
+3. Cannot add future-dated profits
+4. Cumulative totals calculated on read
+
+### Challenge Year Logic
+
+- Challenge runs from January 1 to December 31
+- Users must accept each year's challenge separately
+- Chart only shows data up to current month
+- All profit queries filtered by challenge year
 
 ### Styling with Tailwind v4
-
-The project uses Tailwind CSS v4 with CSS-based configuration:
 
 ```css
 /* app/globals.css */
 @import "tailwindcss";
 
 @theme inline {
-  --color-custom: #hexvalue;
-  --font-custom: "Font Name", sans-serif;
+  --color-background: #f8f8f8;
+  --color-foreground: #1a1a1a;
+  /* ... other theme variables */
 }
 ```
 
-- No `tailwind.config.js` required (optional for advanced cases)
-- Theme customization via CSS custom properties
-- Automatic dark mode via `@media (prefers-color-scheme: dark)`
-
-### Working with AI Agents
-
-This project is configured for AI-assisted development:
-
-- Review **AGENTS.md** for detailed AI agent guidelines
-- Follow the minimal code changes principle
-- Use early returns and descriptive function names
-- Add comments describing function purposes
-- AI agents enforce rules from `.claude/rules/typescript-code-quality.mdc`
-
-## CI/CD
-
-### GitHub Actions
-
-The project includes a CI workflow (`.github/workflows/ci.yml`) that runs on push and pull requests to main:
-
-- **Lint Check**: Validates code against ESLint rules
-- **Format Check**: Ensures code follows Prettier formatting
-- **Node Version**: Uses LTS version for consistent builds
-- **Dependency Installation**: Uses `npm ci` for deterministic installs
-
-### Pre-Deployment Checklist
-
-- [ ] Run `bun lint` and fix all issues
-- [ ] Run `bun format` to ensure consistent formatting
-- [ ] Run `bun build` successfully
-- [ ] Test in production mode with `bun start`
-- [ ] Verify environment variables are configured
-- [ ] Update documentation for new features
-
-## Recent Updates (Updated: 2025-12-04)
+## Recent Updates (Updated: 2026-01-04)
 
 ### Latest Changes
 
-**Commit 36b3bf7** (41 minutes ago) - AI Agent Configuration
+**aae0c11** - Yearly Challenge Acceptance System
 
-- Added `.claude/` directory with commands and rules
-- Added `.cursor/` directory with TypeScript code quality rules
-- Created **AGENTS.md** with comprehensive AI agent documentation
-- Created **CLAUDE.md** (this file) for project documentation
-- Added GitHub Actions CI workflow for lint and format checks
+- Added `challenge_acceptances` table for yearly participation tracking
+- Created challenge acceptance modal for new users
+- Added `AcceptChallengeButton` component
+- Challenge stats component shows current progress
+- Only accepted participants appear in chart and podium
 
-**Commit e1ff6e4** (2 hours ago) - Design System Update
+**dea4fb2** - Interactive Chart Avatars
 
-- Added GeneralSans font family with 12 weight variants
-- Updated home page with minimalist centered design
-- Implemented custom color scheme with CSS variables
-- Added dark mode support via `prefers-color-scheme`
-- Simplified layout component with font optimization
+- Added avatar endpoints on chart lines with hover tooltips
+- Avatars stack when values are close together
+- Button hover effects improved
 
-**Commit 9ee9046** (3 hours ago) - ESLint Setup
+**1cac07a** - Yearly Challenge Rules
 
-- Configured ESLint v9 with flat config format
-- Added Next.js core web vitals and TypeScript rules
-- Integrated Prettier with ESLint
-- Added GitHub ESLint plugin for best practices
-- Updated lint scripts in package.json
+- Changed from cumulative to individual profit entries
+- Cumulative calculation now happens on read
+- All queries scoped to current challenge year
 
-**Commit c697852** (4 hours ago) - Initial Setup
+**fd1af2b** - Date Picker for Profits
 
-- Initialized Next.js 16 project with TypeScript
-- Configured Tailwind CSS v4.1 with PostCSS
-- Set up Prettier with Tailwind plugin
-- Created basic project structure
-- Added comprehensive README documentation
+- Added date selection when adding profits
+- Validation ensures dates within challenge year
+- Fixed hydration mismatch with consistent number formatting
+
+**7eb1f06** - OAuth Authentication
+
+- Added Supabase OAuth flow (GitHub/Google)
+- Created benefit tracking server actions
+- Dialog-based profit entry form
+
+**d7e2d9d** - Supabase SSR Setup
+
+- Configured `@supabase/ssr` for server-side auth
+- Added middleware for session refresh
+- Created server/client Supabase utilities
 
 ### Breaking Changes
 
-None - this is the initial release.
-
-### New Features
-
-1. **AI Development Support**: Full configuration for Claude and Cursor AI agents
-2. **Custom Typography**: GeneralSans font family across all weights
-3. **Modern Styling**: Tailwind CSS v4 with CSS-based theme configuration
-4. **Automated Quality Checks**: CI workflow for linting and formatting
-5. **Dark Mode**: Automatic dark mode based on system preferences
-
-## Deployment
-
-### Vercel (Recommended)
-
-1. Push code to GitHub
-2. Import repository in [Vercel](https://vercel.com)
-3. Vercel auto-detects Next.js configuration
-4. Configure environment variables in Vercel dashboard
-5. Deploy
-
-### Other Platforms
-
-Compatible with any platform supporting Next.js:
-
-- [Netlify](https://www.netlify.com)
-- [AWS Amplify](https://aws.amazon.com/amplify/)
-- [Railway](https://railway.app)
-- Docker containers
-
-### Build Configuration
-
-- **Build Command**: `bun build`
-- **Output Directory**: `.next`
-- **Install Command**: `bun install`
-- **Node Version**: LTS (recommended)
+- Profit entries are now stored individually (not cumulative)
+- Users must accept challenge before participating each year
 
 ## Important Notes
 
 ### For Developers
 
-1. **Bun Required**: This project uses Bun as the package manager. Install from [bun.sh](https://bun.sh)
-2. **AI Agents**: Read **AGENTS.md** before having AI agents modify code
-3. **Minimal Changes**: Follow the principle of minimal code changes to reduce bugs
-4. **TypeScript Strict**: All code must pass TypeScript strict mode checks
-5. **Format Before Commit**: Run `bun format` before committing code
+1. **Bun Required**: Uses Bun as package manager
+2. **TypeScript Strict**: All code must pass strict mode checks
+3. **Server Components**: Prefer server components; use `"use client"` only when needed
+4. **Minimal Changes**: Follow principle of minimal code changes
+5. **Format Before Commit**: Run `bun format` before committing
 
 ### For AI Agents
 
-- **Read AGENTS.md first**: Contains critical guidelines and workflows
-- **Follow minimal changes principle**: Only modify code related to the task
-- **Use TypeScript strictly**: Leverage strict mode for type safety
-- **Preserve comments**: Don't modify unrelated comments
-- **Early returns**: Prefer early returns over nested conditions
-- **Descriptive names**: Use clear, descriptive variable and function names
+- Read **AGENTS.md** for detailed guidelines
+- Follow minimal changes principle
+- Preserve existing comments
+- Use early returns over nested conditions
+- Use descriptive variable and function names
 
 ## Resources
 
 - [Next.js Documentation](https://nextjs.org/docs)
+- [Supabase Documentation](https://supabase.com/docs)
 - [Tailwind CSS v4 Documentation](https://tailwindcss.com/docs)
-- [TypeScript Documentation](https://www.typescriptlang.org/docs)
-- [ESLint Documentation](https://eslint.org/docs)
-- [Prettier Documentation](https://prettier.io/docs)
-- [Bun Documentation](https://bun.sh/docs)
-
-## Support
-
-For issues or questions:
-
-- Check the [README.md](./README.md) for quick start guide
-- Review [AGENTS.md](./AGENTS.md) for AI development guidelines
-- Open an issue on GitHub for bugs or feature requests
+- [Recharts Documentation](https://recharts.org)
+- [Radix UI Documentation](https://radix-ui.com)
 
 ---
 
-**Template maintained by**: Zetis Labs
-**License**: Open source - available for use in your projects
+**Maintained by**: Zetis Labs
+**License**: Open source
